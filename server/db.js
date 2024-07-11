@@ -1,122 +1,118 @@
 const pg = require("pg");
 const uuid = require("uuid");
+const bcrypt = require("bcrypt");
 
 const client = new pg.Client(
-  process.env.DATABASE_URL ||
-    "postgres://localhost/the_acme_reservation_planner_db"
+  process.env.DATABASE_URL || "postgres://localhost/the_acme_store_db"
 );
 
 const createTables = async () => {
   await client.connect();
   let SQL = `
-    DROP TABLE IF EXISTS reservations;
-    DROP TABLE IF EXISTS restaurants;
-    DROP TABLE IF EXISTS customers;
+    DROP TABLE IF EXISTS favorites;
+    DROP TABLE IF EXISTS users;
+    DROP TABLE IF EXISTS products;
    
-    CREATE TABLE customers(
+    CREATE TABLE users(
+        id UUID PRIMARY KEY,
+        username VARCHAR(20) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL
+    );
+    CREATE TABLE products(
         id UUID PRIMARY KEY,
         name VARCHAR(255) NOT NULL
     );
-    CREATE TABLE restaurants(
+    CREATE TABLE favorites(
         id UUID PRIMARY KEY,
-        name VARCHAR(255) NOT NULL
-    );
-    CREATE TABLE reservations(
-        id UUID PRIMARY KEY,
-        date DATE NOT NULL,
-        party_count INTEGER NOT NULL,
-        restaurant_id UUID REFERENCES restaurants(id) NOT NULL,
-        customer_id UUID REFERENCES customers(id) NOT NULL
+        product_id UUID REFERENCES products(id) NOT NULL,
+        user_id UUID REFERENCES users(id) NOT NULL
     );
   `;
+  // await client.query(SQL);
 };
 
-const createCustomer = async ({ name }) => {
+const createUser = async ({ username, password }) => {
   const SQL = `
-          INSERT INTO customers(id, name) VALUES($1, $2) RETURNING *;
+          INSERT INTO users(id, username, password) VALUES($1, $2, $3) RETURNING *;
       `;
 
-  const response = await client.query(SQL, [uuid.v4(), name]);
-  return response.rows;
-};
-
-const createRestaurant = async ({ name }) => {
-  const SQL = `
-          INSERT INTO restaurants(id, name) VALUES($1, $2) RETURNING *;
-      `;
-  const response = await client.query(SQL, [uuid.v4(), name]);
-  return response.rows;
-};
-
-const createReservation = async ({
-  date,
-  party_count,
-  customer_id,
-  restaurant_id,
-}) => {
-  console.log(date, party_count, customer_id, restaurant_id);
-  const SQL = `
-        INSERT INTO reservations(id, date, party_count, customer_id, restaurant_id) VALUES($1, $2, $3, $4, $5) RETURNING *;
-    `;
   const response = await client.query(SQL, [
     uuid.v4(),
-    date,
-    party_count,
-    customer_id,
-    restaurant_id,
+    username,
+    await bcrypt.hash(password, 5),
   ]);
   return response.rows[0];
 };
 
-const destroyReservation = async ({ id, customer_id }) => {
-  console.log(id, customer_id);
+const createProduct = async ({ name }) => {
   const SQL = `
-        DELETE from reservations
-        WHERE id = $1 AND customer_id = $2;
+          INSERT INTO products(id, name) VALUES($1, $2) RETURNING *;
       `;
-
-  const response = await client.query(SQL, [id, customer_id]);
+  const response = await client.query(SQL, [uuid.v4(), name]);
   return response.rows;
 };
 
-const fetchRestaurants = async () => {
+const createFavorite = async ({ user_id, product_id }) => {
+  console.log("entro a create fav");
+  console.log("user_id", user_id, "product id", product_id);
   const SQL = `
-          SELECT * from restaurants
+        INSERT INTO favorites( id, user_id, product_id) VALUES($1, $2, $3) RETURNING *;
+    `;
+  console.log(SQL);
+  const response = await client.query(SQL, [uuid.v4(), user_id, product_id]);
+  return response.rows[0];
+};
+
+const destroyFavorite = async ({ id, user_id }) => {
+  console.log(id, user_id);
+  const SQL = `
+        DELETE from favorites
+        WHERE id = $1 AND user_id = $2;
+      `;
+  const response = await client.query(SQL, [id, user_id]);
+  return response.rows;
+};
+
+const fetchProducts = async () => {
+  const SQL = `
+          SELECT * from products
       `;
   const response = await client.query(SQL);
   return response.rows;
 };
 
-const fetchCustomers = async () => {
+const fetchUsers = async () => {
   const SQL = `
-          SELECT * from customers
+          SELECT * from users
       `;
   const response = await client.query(SQL);
   return response.rows;
 };
 
-const fetchReservations = async () => {
-  //   const SQL = `
-  //         SELECT customers.name as name, restaurants.name as Restaurant from customers
-  //         INNER JOIN reservations as reserv
-  //         on customers.id = reserv.customer_id
-  //         INNER JOIN restaurants
-  //         on reserv.restaurant_id = restaurants.id
-  //         where customers.id = $1;
-  //     `;
-  const SQL = `SELECT * from reservations`;
-  const response = await client.query(SQL);
+const fetchFavorites = async (user_id) => {
+  const SQL = `
+          SELECT users.username as user, products.name as product from users
+          INNER JOIN favorites as favo
+          on users.id = favo.user_id
+          INNER JOIN products
+          on favo.product_id = products.id
+          where users.id = $1;
+      `;
+
+  console.log("sql es" + SQL);
+
+  const response = await client.query(SQL, [user_id]);
   return response.rows;
 };
 
 module.exports = {
   createTables,
-  createCustomer,
-  createRestaurant,
-  createReservation,
-  destroyReservation,
+  createUser,
+  createProduct,
+  createFavorite,
+  destroyFavorite,
   client,
-  fetchRestaurants,
-  fetchCustomers,
-  fetchReservations,
+  fetchProducts,
+  fetchUsers,
+  fetchFavorites,
 };

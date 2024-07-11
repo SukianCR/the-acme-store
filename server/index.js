@@ -1,107 +1,82 @@
 const express = require("express");
 const app = express();
 app.use(express.json());
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3020;
 const {
   createTables,
-  createCustomer,
-  createRestaurant,
-  createReservation,
-  destroyReservation,
+  createUser,
+  createProduct,
+  createFavorite,
+  destroyFavorite,
   client,
-  fetchRestaurants,
-  fetchCustomers,
-  fetchReservations,
+  fetchProducts,
+  fetchUsers,
+  fetchFavorites,
 } = require("./db");
 
 const init = async () => {
   const response = await createTables();
-  //   const [Luisa, Alvaro, Cristina, Mariel, Coconut, Gaucho, CKF] =
-  //     await Promise.all([
-  //       createCustomer({ name: "Luisa" }),
-  //       createCustomer({ name: "Alvaro" }),
-  //       createCustomer({ name: "Cristina" }),
-  //       createCustomer({ name: "Mariel" }),
-  //       createRestaurant({ name: "Coconut" }),
-  //       createRestaurant({ name: "Gaucho" }),
-  //       createRestaurant({ name: "Savanna Jazz" }),
-  //     ]);
-
-  //   console.log(await fetchCustomers());
-  //   console.log(await fetchRestaurants());
-  //   const [reservation, reservation2] = await Promise.all([
-  //     createReservation({
-  //       customer_id: Juan.id,
-  //       restaurant_id: Gaucho.id,
-  //       date: "08/14/2024",
-  //       party_count: 12,
-  //     }),
-  //     createReservation({
-  //       customer_id: Mariel.id,
-  //       restaurant_id: Coconut.id,
-  //       date: "09/14/2024",
-  //       party_count: 15,
-  //     }),
-  //   ]);
-  //   console.log(await fetchReservations());
+  //createUser({ username: "monica", password: "s3cr3tgfsg" })
 
   app.listen(PORT, () => {
     console.log(`Hello from point number ${PORT}`);
   });
 };
 
-app.get("/api/customers", async (req, res) => {
+app.get("/api/users", async (req, res, next) => {
   try {
-    res.send(await fetchCustomers());
+    res.send(await fetchUsers());
   } catch (ex) {
     next(ex);
   }
 });
 
-app.get("/api/restaurants", async (req, res) => {
+app.get("/api/products", async (req, res, next) => {
   try {
-    res.send(await fetchRestaurants());
-  } catch (ex) {
-    console.log(ex);
-    next(ex);
-  }
-});
-
-app.get("/api/reservations", async (req, res, next) => {
-  try {
-    res.send(await fetchReservations());
+    res.send(await fetchProducts());
   } catch (ex) {
     console.log(ex);
     next(ex);
   }
 });
 
-app.post("/api/customer/", async (req, res) => {
+app.get("/api/users/:id/favorites", async (req, res, next) => {
   try {
-    res.status(201).send(await createCustomer({ name: req.body.name }));
+    res.send(await fetchFavorites(req.params.id));
   } catch (ex) {
     console.log(ex);
     next(ex);
   }
 });
 
-app.post("/api/restaurant/", async (req, res, next) => {
+app.post("/api/user/", async (req, res, next) => {
   try {
-    res.status(201).send(await createRestaurant({ name: req.body.name }));
+    res
+      .status(201)
+      .send(
+        await createUser({ username: req.body.username, password: req.body.password })
+      );
   } catch (ex) {
     console.log(ex);
     next(ex);
   }
 });
 
-app.post("/api/customers/:id/reservations", async (req, res, next) => {
+app.post("/api/product/", async (req, res, next) => {
+  try {
+    res.status(201).send(await createProduct({ name: req.body.name }));
+  } catch (ex) {
+    console.log(ex);
+    next(ex);
+  }
+});
+
+app.post("/api/users/:id/favorites", async (req, res, next) => {
   try {
     res.status(201).send(
-      await createReservation({
-        customer_id: req.params.id,
-        date: req.body.date,
-        party_count: req.body.party_count,
-        restaurant_id: req.body.restaurant_id,
+      await createFavorite({
+        user_id: req.params.id,
+        product_id: req.body.product_id,
       })
     );
   } catch (ex) {
@@ -110,20 +85,34 @@ app.post("/api/customers/:id/reservations", async (req, res, next) => {
   }
 });
 
-app.delete(
-  "/api/customers/:customer_id/reservations/:id",
-  async (req, res, next) => {
-    try {
-      await destroyReservation({
-        customer_id: req.params.customer_id,
-        id: req.params.id,
-      });
-      res.sendStatus(204);
-    } catch (ex) {
-      console.log(ex);
-      next(ex);
-    }
+app.delete("/api/users/:user_id/favorites/:id", async (req, res, next) => {
+  try {
+    await destroyFavorite({
+      user_id: req.params.user_id,
+      id: req.params.id,
+    });
+    res.sendStatus(204);
+  } catch (ex) {
+    console.log(ex);
+    next(ex);
   }
-);
+});
 
 init();
+
+
+
+
+
+//to practice:
+// const [lucia, maria, laura, book, bike, skate, lamp] = await Promise.all([
+//   createUser({ username: "lucia", password: "s3cr3t" }),
+//   createUser({ username: "maria", password: "s3cr3t!!" }),
+//   createUser({ username: "laura", password: "shhh" }),
+//   createProduct({ name: "book" }),
+//   createProduct({ name: "bike" }),
+//   createProduct({ name: "skate" }),
+//   createProduct({ name: "lamp" }),
+// ]);
+// console.log(lucia.id);
+// console.log(maria.id);
